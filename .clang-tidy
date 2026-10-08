@@ -1,0 +1,77 @@
+---
+WarningsAsErrors: ""
+HeaderFilterRegex: '.*[/\\]src[/\\].*\.h$'
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+    -clang-analyzer-optin.core.EnumCastOutOfRange,
+  cppcoreguidelines-*,
+    -cppcoreguidelines-avoid-do-while,
+    -cppcoreguidelines-avoid-non-const-global-variables,
+    -cppcoreguidelines-prefer-member-initializer,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-type-reinterpret-cast,
+    -cppcoreguidelines-pro-type-union-access,
+    -cppcoreguidelines-pro-type-vararg,
+    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  misc-*,
+    -misc-include-cleaner,
+    -misc-non-private-member-variables-in-classes,
+    -misc-no-recursion,
+    -misc-const-correctness,
+  modernize-*,
+    -modernize-avoid-c-arrays,
+    -modernize-redundant-void-arg,
+    -modernize-use-trailing-return-type,
+    -modernize-use-nodiscard,
+    -modernize-use-designated-initializers,
+  performance-*,
+    -performance-no-int-to-ptr,
+  portability-*,
+  readability-*,
+    -readability-redundant-access-specifiers,
+    -readability-qualified-auto,
+    -readability-identifier-length,
+    -readability-magic-numbers,
+    -readability-implicit-bool-conversion,
+    -readability-static-definition-in-anonymous-namespace,
+    -readability-named-parameter,
+    -readability-function-cognitive-complexity,
+  
+  -bugprone-narrowing-conversions,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-c-copy-assignment-signature,
+  -cppcoreguidelines-explicit-virtual-functions,
+  -cppcoreguidelines-macro-to-enum,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+CheckOptions:
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams: true
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
+
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.FunctionCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.GlobalVariableCase: CamelCase
+  readability-identifier-naming.GlobalVariablePrefix: g_
+
+  readability-identifier-naming.GlobalConstantCase: lower_case
+  readability-identifier-naming.GlobalConstantIgnoredRegexp: '^[A-Z][A-Z0-9_]*$'
+
+  readability-identifier-naming.PrivateMemberPrefix: m_
+  readability-identifier-naming.PrivateMemberCase: CamelCase
+  readability-identifier-naming.PublicMemberCase: lower_case
+  readability-identifier-naming.PublicMemberIgnoredRegexp: '^_[0-9]+$'
+
+  readability-identifier-length.IgnoredVariableNames: _
+---
