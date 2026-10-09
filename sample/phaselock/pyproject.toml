@@ -1,0 +1,10 @@
+[project]
+name = "phaselock"
+version = "1.0"
+authors = [{ name = "-Ry" }]
+description = """replaces liliths action skill with phaselock"""
+
+[tool.sdkmod]
+name = "Phaselock"
+supported_games = ["BL1"]
+license = { name = "GPL3", url = "https://choosealicense.com/licenses/gpl-3.0/" }
