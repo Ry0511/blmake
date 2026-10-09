@@ -14,7 +14,7 @@ std::ofstream log_file;
 
 void setup_logging(const fs::path& in_file) {
     const std::scoped_lock lock(log_mutex);
-    log_file.open(in_file, std::ios::app);
+    log_file.open(in_file, std::ios::trunc);
 }
 
 void shutdown_logging() {
