@@ -81,10 +81,18 @@ struct UStruct : UField {
     uint8_t _0[0x2C];
 };
 
+struct UFunction : UStruct {
+    BLMAKE_DISALLOW_CREATE(UFunction);
+
+    uint32_t FunctionFlags;
+    uint16_t iNative;
+};
+
 struct UClass : UStruct {
     BLMAKE_DISALLOW_CREATE(UClass);
 
-    uint8_t _0[0x54];
+    uint8_t _0[0x18];
+    TMap<FName, UFunction*> FuncMap;
     uint32_t ClassFlags;
     uint8_t _1[0x68];
     UObject* ClassDefaultObject;

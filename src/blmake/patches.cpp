@@ -203,9 +203,24 @@ int __cdecl parse_scripts_hook(
     int booting,
     int make_subclasses
 ) {
-    // the engine will not set these flags for cooked packages so we need to do it
-    if (cls != nullptr && cls->ScriptText == nullptr) {
-        cls->ClassFlags |= CLASS_Parsed | CLASS_Compiled;
+    if (cls != nullptr) {
+        // the engine will not set these flags for cooked packages so we need to do it
+        if (cls->ScriptText == nullptr) {
+            cls->ClassFlags |= CLASS_Parsed | CLASS_Compiled;
+        }
+
+        // when recompiling a compiled package i.e., Core.u or WillowGame.u then some of our prior
+        // patches actually cause problems (ironic) so if the class is not compiled but has native
+        // functions bound to it, then we need to clear them first.
+        else if ((cls->ClassFlags & CLASS_Compiled) != 0) {
+            cls->ClassFlags &= ~(CLASS_Parsed | CLASS_Compiled);
+            auto& funcs = cls->FuncMap.Pairs;
+            for (int32_t i = 0; i < funcs.max_index(); ++i) {
+                if (funcs.is_allocated(i) && funcs.at(i).Value != nullptr) {
+                    funcs.at(i).Value->iNative = 0;
+                }
+            }
+        }
     }
     return fn_parse_scripts(tree, compiler, cls, make_all, booting, make_subclasses);
 }
