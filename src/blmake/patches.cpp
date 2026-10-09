@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <shellapi.h>
 
@@ -9,6 +10,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "logging.h"
 #include "patches.h"
 #include "structs.h"
 
@@ -50,6 +52,25 @@ bool write_code(std::byte* at, const uint8_t* bytes, size_t size) {
     return true;
 }
 
+bool apply_patch(
+    const char* name,
+    hat::scan_result result,
+    size_t offset,
+    const uint8_t* bytes,
+    size_t size
+) {
+    if (!result.has_result()) {
+        return false;
+    }
+    std::byte* at = result.get() + offset;
+    if (!write_code(at, bytes, size)) {
+        BLMAKE_LOG("{}: couldn't write {} bytes at {}", name, size, static_cast<void*>(at));
+        return false;
+    }
+    BLMAKE_LOG("{}: patched at {}", name, static_cast<void*>(at));
+    return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // | PATCHES |
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,8 +108,13 @@ bool patch_superclass_check() {
 
     constexpr auto offset = 22;
     constexpr uint8_t bytes[] = {0x90, 0x90};
-    const auto result = hat::find_pattern(signature, ".text");
-    return result.has_result() && write_code(result.get() + offset, bytes, sizeof bytes);
+    return apply_patch(
+        __func__,
+        hat::find_pattern(signature, ".text"),
+        offset,
+        bytes,
+        sizeof bytes
+    );
 }
 
 bool patch_parent_parsed_check() {
@@ -113,8 +139,13 @@ bool patch_parent_parsed_check() {
         >();
     constexpr auto offset = 27;
     constexpr uint8_t bytes[] = {0x90, 0xE9};
-    const auto result = hat::find_pattern(signature, ".text");
-    return result.has_result() && write_code(result.get() + offset, bytes, sizeof bytes);
+    return apply_patch(
+        __func__,
+        hat::find_pattern(signature, ".text"),
+        offset,
+        bytes,
+        sizeof bytes
+    );
 }
 
 bool patch_parse_scripts_early_out() {
@@ -136,8 +167,13 @@ bool patch_parse_scripts_early_out() {
 
     constexpr auto offset = 9;
     constexpr uint8_t bytes[] = {0xEB, 0x17};
-    const auto result = hat::find_pattern(signature, ".text");
-    return result.has_result() && write_code(result.get() + offset, bytes, sizeof bytes);
+    return apply_patch(
+        __func__,
+        hat::find_pattern(signature, ".text"),
+        offset,
+        bytes,
+        sizeof bytes
+    );
 }
 
 // static UBOOL ParseScripts
@@ -153,7 +189,6 @@ int __cdecl parse_scripts_hook(
     if (cls != nullptr && cls->ScriptText == nullptr) {
         cls->ClassFlags |= CLASS_Parsed | CLASS_Compiled;
     }
-
     return fn_parse_scripts(tree, compiler, cls, make_all, booting, make_subclasses);
 }
 
@@ -196,7 +231,12 @@ bool hook_parse_scripts() {
         reinterpret_cast<void**>(&fn_parse_scripts)
     );
 
-    return hook_ret == MH_OK && MH_EnableHook(target) == MH_OK;
+    if (hook_ret != MH_OK || MH_EnableHook(target) != MH_OK) {
+        BLMAKE_LOG("couldn't hook ParseScripts at {}: {}", target, MH_StatusToString(hook_ret));
+        return false;
+    }
+    BLMAKE_LOG("hooked ParseScripts at {}", target);
+    return true;
 }
 
 bool try_install() {
@@ -207,8 +247,12 @@ bool try_install() {
 }
 
 BOOL WINAPI is_debugger_present_hook() {
-    if (!patches_applied.load() && try_install()) {
-        patches_applied.store(true);
+    if (!patches_applied.load()) {
+        BLMAKE_LOG("attempting make commandlet patches...");
+        if (try_install()) {
+            patches_applied.store(true);
+            BLMAKE_LOG("all patches applied successfully");
+        }
     }
     return fn_is_debugger_present();
 }
@@ -231,6 +275,7 @@ void install_patches() {
     if (!is_make_run()) {
         return;
     }
+    BLMAKE_LOG("Make commandlet detected - awaiting exe decryption");
 
     void* target = nullptr;
 
@@ -242,10 +287,9 @@ void install_patches() {
         &target
     );
 
-    if (ret != MH_OK) {
-        return;
+    if (ret != MH_OK || MH_EnableHook(target) != MH_OK) {
+        BLMAKE_LOG("failed to hook IsDebuggerPresent: {}", MH_StatusToString(ret));
     }
-    MH_EnableHook(target);
 }
 
 }  // namespace blmake

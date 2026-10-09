@@ -34,4 +34,5 @@ FetchContent_MakeAvailable(libhat)
 file(GLOB_RECURSE BLMAKE_SOURCE_LIST CONFIGURE_DEPENDS src/blmake/*.cpp src/blmake/*.h)
 
 add_library(blmake SHARED ${BLMAKE_SOURCE_LIST})
+target_include_directories(blmake PRIVATE src)
 target_link_libraries(blmake PRIVATE minhook libhat::libhat)
