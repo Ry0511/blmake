@@ -36,7 +36,9 @@ using IsDebuggerPresentFn = BOOL(WINAPI*)();
 ParseScriptsFn fn_parse_scripts = nullptr;
 CopyInheritedComponentsFn fn_copy_inherited_components = nullptr;
 IsDebuggerPresentFn fn_is_debugger_present = nullptr;
+
 std::atomic patches_applied{false};
+bool no_compress = false;
 
 bool write_code(std::byte* at, const uint8_t* bytes, size_t size) {
     constexpr auto flags = hat::protection::Read | hat::protection::Write | hat::protection::Execute;
@@ -207,17 +209,21 @@ int __cdecl parse_scripts_hook(
         // the engine will not set these flags for cooked packages so we need to do it
         if (cls->ScriptText == nullptr) {
             cls->ClassFlags |= CLASS_Parsed | CLASS_Compiled;
-        }
+        } else {
+            if (no_compress) {
+                reinterpret_cast<UPackage*>(cls->Outer)->PackageFlags &= ~PKG_StoreCompressed;
+            }
 
-        // when recompiling a compiled package i.e., Core.u or WillowGame.u then some of our prior
-        // patches actually cause problems (ironic) so if the class is not compiled but has native
-        // functions bound to it, then we need to clear them first.
-        else if ((cls->ClassFlags & CLASS_Compiled) != 0) {
-            cls->ClassFlags &= ~(CLASS_Parsed | CLASS_Compiled);
-            auto& funcs = cls->FuncMap.Pairs;
-            for (int32_t i = 0; i < funcs.max_index(); ++i) {
-                if (funcs.is_allocated(i) && funcs.at(i).Value != nullptr) {
-                    funcs.at(i).Value->iNative = 0;
+            // when recompiling a compiled package i.e., Core.u or WillowGame.u then some of our
+            // prior patches actually cause problems (ironic) so if the class is not compiled but
+            // has native functions bound to it, then we need to clear them first.
+            if ((cls->ClassFlags & CLASS_Compiled) != 0) {
+                cls->ClassFlags &= ~(CLASS_Parsed | CLASS_Compiled);
+                auto& funcs = cls->FuncMap.Pairs;
+                for (int32_t i = 0; i < funcs.max_index(); ++i) {
+                    if (funcs.is_allocated(i) && funcs.at(i).Value != nullptr) {
+                        funcs.at(i).Value->iNative = 0;
+                    }
                 }
             }
         }
@@ -337,7 +343,20 @@ BOOL WINAPI is_debugger_present_hook() {
 bool is_make_run() {
     int argc{0};
     LPWSTR* args = CommandLineToArgvW(GetCommandLineW(), &argc);
+
+    const auto contains_icase = [&](const wchar_t* arg) {
+        for (int i = 2; i < argc; ++i) {
+            if (_wcsicmp(args[i], arg) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // positional
     const bool has_make_arg = argc > 1 && _wcsnicmp(args[1], L"make", 4) == 0;
+    no_compress = contains_icase(L"-nocompress");
+
     LocalFree(args);
     return has_make_arg;
 }

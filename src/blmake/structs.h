@@ -42,6 +42,7 @@ struct FImplementedInterface {
 
 constexpr uint32_t CLASS_Compiled = 0x00000002;
 constexpr uint32_t CLASS_Parsed = 0x00000010;
+constexpr uint32_t PKG_StoreCompressed = 0x02000000;
 
 struct UObject {
     BLMAKE_DISALLOW_CREATE(UObject);
@@ -59,6 +60,13 @@ struct UObject {
     FName Name;
     UClass* Class;
     UObject* ObjectArchetype;
+};
+
+struct UPackage : UObject {
+    BLMAKE_DISALLOW_CREATE(UPackage);
+
+    uint8_t _0[0x60];
+    uint32_t PackageFlags;
 };
 
 struct UField : UObject {
