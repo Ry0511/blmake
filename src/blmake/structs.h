@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "macros.h"
+#include "tarray.h"
+#include "tmap.h"
+
 namespace blmake {
 
 using std::int32_t;
@@ -26,13 +30,6 @@ struct UClass;
 struct UProperty;
 struct UTextBuffer;
 
-template <class T>
-struct TArray {
-    T* data;
-    int32_t count;
-    int32_t max;
-};
-
 struct FName {
     int32_t index;
     int32_t number;
@@ -47,6 +44,8 @@ constexpr uint32_t CLASS_Compiled = 0x00000002;
 constexpr uint32_t CLASS_Parsed = 0x00000010;
 
 struct UObject {
+    BLMAKE_DISALLOW_CREATE(UObject);
+
     uintptr_t* vftable;
     int32_t InternalIndex;
     uint64_t ObjectFlags;
@@ -63,11 +62,15 @@ struct UObject {
 };
 
 struct UField : UObject {
+    BLMAKE_DISALLOW_CREATE(UField);
+
     UStruct* SuperField;
     UField* Next;
 };
 
 struct UStruct : UField {
+    BLMAKE_DISALLOW_CREATE(UStruct);
+
     UTextBuffer* ScriptText;
     UTextBuffer* CppText;
     UField* Children;
@@ -79,11 +82,14 @@ struct UStruct : UField {
 };
 
 struct UClass : UStruct {
+    BLMAKE_DISALLOW_CREATE(UClass);
+
     uint8_t _0[0x54];
     uint32_t ClassFlags;
     uint8_t _1[0x68];
     UObject* ClassDefaultObject;
-    uint8_t _2[0x48];
+    uint8_t _2[0x0C];
+    TMap<FName, UObject*> ComponentNameToDefaultObjectMap;
     TArray<FImplementedInterface> Interfaces;
 };
 

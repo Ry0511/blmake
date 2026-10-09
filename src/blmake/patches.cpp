@@ -30,9 +30,11 @@ using ParseScriptsFn = int(__cdecl*)(
     int booting,
     int make_subclasses
 );
+using CopyInheritedComponentsFn = void(__cdecl*)(UClass* cls, void* instance_graph);
 using IsDebuggerPresentFn = BOOL(WINAPI*)();
 
 ParseScriptsFn fn_parse_scripts = nullptr;
+CopyInheritedComponentsFn fn_copy_inherited_components = nullptr;
 IsDebuggerPresentFn fn_is_debugger_present = nullptr;
 std::atomic patches_applied{false};
 
@@ -68,6 +70,22 @@ bool apply_patch(
         return false;
     }
     BLMAKE_LOG("{}: patched at {}", name, static_cast<void*>(at));
+    return true;
+}
+
+bool install_hook(const char* name, hat::scan_result result, void* detour, void** original) {
+    if (!result.has_result()) {
+        return false;
+    }
+    void* target = result.get();
+
+    const auto hook_ret = MH_CreateHook(target, detour, original);
+    if (hook_ret != MH_OK || MH_EnableHook(target) != MH_OK) {
+        BLMAKE_LOG("couldn't hook {} at {}: {}", name, target, MH_StatusToString(hook_ret));
+        return false;
+    }
+
+    BLMAKE_LOG("hooked {} at {}", name, target);
     return true;
 }
 
@@ -192,6 +210,35 @@ int __cdecl parse_scripts_hook(
     return fn_parse_scripts(tree, compiler, cls, make_all, booting, make_subclasses);
 }
 
+int remove_null_component_templates(TMap<FName, UObject*>& map) {
+    auto& pairs = map.Pairs;
+    int removed = 0;
+
+    for (int32_t i = 0; i < pairs.max_index(); ++i) {
+        if (pairs.is_allocated(i) && pairs.at(i).Value == nullptr) {
+            pairs.remove(i);
+            ++removed;
+        }
+    }
+    return removed;
+}
+
+// ::ImportProperties helper that copies components into its defaults maps
+void __cdecl copy_inherited_components_hook(UClass* cls, void* instance_graph) {
+    // null pointers do be quite dangerous
+    if (cls != nullptr) {
+        const int removed = remove_null_component_templates(cls->ComponentNameToDefaultObjectMap);
+        if (removed > 0) {
+            BLMAKE_LOG(
+                "dropped {} null component template(s) from the class at {}",
+                removed,
+                static_cast<void*>(cls)
+            );
+        }
+    }
+    fn_copy_inherited_components(cls, instance_graph);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // | HOOKS |
 ////////////////////////////////////////////////////////////////////////////////
@@ -217,33 +264,48 @@ bool hook_parse_scripts() {
         " 39 5D 44"           // cmp [ebp + 0x44], ebx
         >();
 
-    const auto result = hat::find_pattern(signature, ".text");
-
-    if (!result.has_result()) {
-        return false;
-    }
-
-    void* target = result.get();
-
-    const auto hook_ret = MH_CreateHook(
-        target,
+    return install_hook(
+        "ParseScripts",
+        hat::find_pattern(signature, ".text"),
         reinterpret_cast<void*>(&parse_scripts_hook),
         reinterpret_cast<void**>(&fn_parse_scripts)
     );
+}
 
-    if (hook_ret != MH_OK || MH_EnableHook(target) != MH_OK) {
-        BLMAKE_LOG("couldn't hook ParseScripts at {}: {}", target, MH_StatusToString(hook_ret));
-        return false;
-    }
-    BLMAKE_LOG("hooked ParseScripts at {}", target);
-    return true;
+bool hook_copy_inherited_components() {
+    constexpr auto signature = hat::compile_signature<
+        " 6A FF"                 // push -1
+        " 68 ?? ?? ?? ??"        // push handler
+        " 64 A1 00 00 00 00"     // mov eax, fs:[0]
+        " 50"                    // push eax
+        " 81 EC A4 01 00 00"     // sub esp, 0x1a4
+        " 53"                    // push ebx
+        " 55"                    // push ebp
+        " 56"                    // push esi
+        " 57"                    // push edi
+        " A1 ?? ?? ?? ??"        // mov eax, [security_cookie]
+        " 33 C4"                 // xor eax, esp
+        " 50"                    // push eax
+        " 8D 84 24 B8 01 00 00"  // lea eax, [esp + 0x1b8]
+        " 64 A3 00 00 00 00"     // mov fs:[0], eax
+        " 33 FF"                 // xor edi, edi
+        " 89 BC 24 88 00 00 00"  // mov [esp + 0x88], edi
+        >();
+
+    return install_hook(
+        "CopyInheritedComponents",
+        hat::find_pattern(signature, ".text"),
+        reinterpret_cast<void*>(&copy_inherited_components_hook),
+        reinterpret_cast<void**>(&fn_copy_inherited_components)
+    );
 }
 
 bool try_install() {
     return patch_superclass_check()
            && patch_parent_parsed_check()
            && patch_parse_scripts_early_out()
-           && hook_parse_scripts();
+           && hook_parse_scripts()
+           && hook_copy_inherited_components();
 }
 
 BOOL WINAPI is_debugger_present_hook() {
