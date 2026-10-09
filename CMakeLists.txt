@@ -16,14 +16,19 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
     GIT_TAG v1.3.4
     GIT_SHALLOW TRUE
+    EXCLUDE_FROM_ALL
 )
+set(CMAKE_SKIP_INSTALL_RULES ON)
 FetchContent_MakeAvailable(minhook)
+set(CMAKE_SKIP_INSTALL_RULES OFF)
 
+set(LIBHAT_INSTALL_TARGET OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     libhat
     GIT_REPOSITORY https://github.com/BasedInc/libhat.git
     GIT_TAG v0.11.1
     GIT_SHALLOW TRUE
+    EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(libhat)
 
@@ -36,3 +41,5 @@ file(GLOB_RECURSE BLMAKE_SOURCE_LIST CONFIGURE_DEPENDS src/blmake/*.cpp src/blma
 add_library(blmake SHARED ${BLMAKE_SOURCE_LIST})
 target_include_directories(blmake PRIVATE src)
 target_link_libraries(blmake PRIVATE minhook libhat::libhat)
+
+install(TARGETS blmake RUNTIME DESTINATION .)
