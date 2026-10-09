@@ -18,7 +18,7 @@ blmake.log file if you encounter any issues.
 The current workflow uses unreal engines mod packages system which requires a little setup. The
 following is a minimal example of getting a custom script package to compile.
 
-> All paths are relative to the root game directory which is the folder containing Binaries and
+> All paths are relative to the root game directory, which is the folder containing Binaries and
 > WillowGame. However, you can also do this from `my games\borderlands` and that approach is
 > recommended since it works for both steam and udk version.
 
@@ -35,7 +35,7 @@ The following directory structure is required:
       - CustomScript.u <- generated from make commandlet
 ```
 
-Once you have that setup you will need to do one more thing. Inside
+Once you have that setup, you will need to do one more thing. Inside
 `WillowGame/Config/WillowEditor.ini` create an entry in the mod packages section and modify
 ModPackagesInPath and ModOutputDir. It should look something like this:
 
@@ -90,8 +90,8 @@ custom actors which can be placed into a map.
 
 The editor will load it already since you added the `ModPackages=MayaPhaselock` entry to the config
 file. That is all that is required for the editor to load it; in fact, base game probably also does
-that. But telling users to mess with config files always ends badly so I suggest using an sdk mod
-instead of loading the script package. This snippet can be used to load a script package:
+that. But telling users to mess with config files always ends badly, so I suggest using an sdk mod
+to load the package. This snippet can be used to load a script package:
 
 ```py
 from pathlib import Path
@@ -99,7 +99,7 @@ from unrealsdk import find_all, load_package, ObjectFlags
 
 
 def load_script_package(pkg: str | Path) -> None:
-    # this accepts an absolute path to a file so you can either have users install the package 
+    # this accepts an absolute path to a file, so you can either have users install the package 
     # separately or you manually load it from your mod. When packaging into an sdkmod you'll first 
     # need to extract it and then load it. Ideally, the drag, drop, done approach should be taken. 
     pkg = load_package(str(pkg))
@@ -109,8 +109,8 @@ def load_script_package(pkg: str | Path) -> None:
             cls.ObjectFlags |= ObjectFlags.KEEP_ALIVE
 ```
 
-You're free to do whatever you want with the above. Maybe create a library that auto-loads script
+You're free to do whatever you want with the above. Maybe create a library that autoloads script
 packages from sdk_mods/script_packages/ ?
 
-To validate that you have done everything correctly you can try compiling and using the
+To validate that you have done everything correctly, you can try compiling and using the
 [Maya Phaselock skill](sample)
