@@ -19,8 +19,8 @@ The current workflow uses unreal engines mod packages system which requires a li
 following is a minimal example of getting a custom script package to compile.
 
 > All paths are relative to the root game directory which is the folder containing Binaries and
-> WillowGame. However, you can also do this from `my games\borderlands\borderlands` and that
-> approach is recommended since it works for both steam and udk version.
+> WillowGame. However, you can also do this from `my games\borderlands` and that approach is
+> recommended since it works for both steam and udk version.
 
 The following directory structure is required:
 
@@ -32,12 +32,12 @@ The following directory structure is required:
         - Classes
           - SomeClass.uc
     - Script
-      - CustomScript.upk <- generated from make commandlet
+      - CustomScript.u <- generated from make commandlet
 ```
 
 Once you have that setup you will need to do one more thing. Inside
-`WillowGame/Config/WillowEditor.ini` create an entry for the mod package. For the above you should
-ensure you have this:
+`WillowGame/Config/WillowEditor.ini` create an entry in the mod packages section and modify
+ModPackagesInPath and ModOutputDir. It should look something like this:
 
 ```ini
 [ModPackages]
@@ -50,7 +50,7 @@ ModPackages = CustomScript2
 ModPackages = CustomScript3
 ```
 
-Once you have all the above in place you can start the make commandlet with the command:
+Once you have all the above in place, you can start the make commandlet with the command:
 
 ```ps1
 ./Borderlands.exe Make -NoHomeDir -NoPause -ForceLogFlush -NoCompress -Debug
@@ -64,8 +64,10 @@ Minimally all you need is
 
 > You can check the `WillowGame/Logs/UCC.log` file for the compilation log
 
+> -NoHomeDir does not seem to work on the steam version
+
 > You may need to compile against the steam version to ship on steam – depends on how native
-> functions are handled, they are almost certainly not compatible between 141 and steam.
+> functions are handled and if they are compatible between 141 and steam.
 
 ### Additional Parameters
 
@@ -82,7 +84,7 @@ Minimally all you need is
 
 ### Loading Script Packages
 
-Once you have the compiled script package you might be wondering how you load it into the game.
+Once you have the compiled script package, you might be wondering how you load it into the game.
 Which there are two load paths that are relevant since the editor can use these packages, i.e.,
 custom actors which can be placed into a map.
 
@@ -110,6 +112,5 @@ def load_script_package(pkg: str | Path) -> None:
 You're free to do whatever you want with the above. Maybe create a library that auto-loads script
 packages from sdk_mods/script_packages/ ?
 
-To validate that you have done everything correctly you can try compiling
-the [MayaPhaselock](sample/MayaPhaselock)sample/MayaPhaselock
-script and then using the [phaselock](sample/phaselock) sdk mod to use the phaselock on lilith.
+To validate that you have done everything correctly you can try compiling and using the
+[Maya Phaselock skill](sample)
