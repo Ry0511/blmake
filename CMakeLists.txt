@@ -43,3 +43,7 @@ target_include_directories(blmake PRIVATE src)
 target_link_libraries(blmake PRIVATE minhook libhat::libhat)
 
 install(TARGETS blmake RUNTIME DESTINATION .)
+
+if(MSVC)
+    install(FILES $<TARGET_PDB_FILE:blmake> DESTINATION . OPTIONAL)
+endif()
