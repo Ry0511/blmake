@@ -133,7 +133,7 @@ TArray<UObject*>* find_gobjects() {
         return nullptr;
     }
     TArray<UObject*>* gobjects = nullptr;
-    std::memcpy(&gobjects, result.get() + 2, sizeof gobjects);
+    std::memcpy(static_cast<void*>(&gobjects), result.get() + 2, sizeof(decltype(gobjects)));
     return gobjects;
 }
 
@@ -148,6 +148,7 @@ UObject* find_object(const wchar_t* path) {
 }
 
 // TODO: rename to is_or_has_parent
+// NOLINTNEXTLINE(*-easily-swappable-parameters)
 bool is_a(const UObject* obj, const UClass* cls) {
     for (const UStruct* it = obj->Class; it != nullptr; it = it->SuperField) {
         if (it == cls) {
@@ -158,6 +159,7 @@ bool is_a(const UObject* obj, const UClass* cls) {
 }
 
 // TODO: rename to is_child_of
+// NOLINTNEXTLINE(*-easily-swappable-parameters)
 bool is_inside(const UObject* obj, const UObject* outer) {
     for (const UObject* it = obj->Outer; it != nullptr; it = it->Outer) {
         if (it == outer) {

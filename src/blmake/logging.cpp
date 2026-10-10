@@ -8,6 +8,8 @@ namespace blmake {
 namespace {
 
 std::mutex log_mutex;
+
+// NOLINTNEXTLINE(*-throwing-static-initialization)
 std::ofstream log_file;
 
 }  // namespace

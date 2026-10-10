@@ -10,6 +10,8 @@
 
 namespace blmake {
 
+// NOLINTBEGIN(*-pro-type-static-cast-downcast)
+
 namespace {
 
 TArray<UObject*>* gobjects = nullptr;
@@ -214,5 +216,7 @@ void purge_stale_defaults(const UClass* cls) {
     purged_packages.push_back(package);
     purge_package(package);
 }
+
+// NOLINTEND(*-pro-type-static-cast-downcast)
 
 }  // namespace blmake

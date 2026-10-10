@@ -72,7 +72,7 @@ bool is_make_run() {
     const bool has_make_arg = argc > 1 && _wcsnicmp(args[1], L"make", 4) == 0;
     no_compress = contains_icase(L"-nocompress");
 
-    LocalFree(args);
+    LocalFree(static_cast<void*>(args));
     return has_make_arg;
 }
 
