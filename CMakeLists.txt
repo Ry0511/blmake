@@ -42,6 +42,13 @@ add_library(blmake SHARED ${BLMAKE_SOURCE_LIST})
 target_include_directories(blmake PRIVATE src)
 target_link_libraries(blmake PRIVATE minhook libhat::libhat)
 
+# clean before install - only do this when installing into out/install
+install(CODE "
+    if(CMAKE_INSTALL_PREFIX MATCHES \"/out/install/\")
+        file(REMOVE_RECURSE \"\${CMAKE_INSTALL_PREFIX}\")
+    endif()
+")
+
 install(TARGETS blmake RUNTIME DESTINATION .)
 
 if(MSVC)
