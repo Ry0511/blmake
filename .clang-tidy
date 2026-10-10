@@ -33,6 +33,7 @@ Checks: >
     -readability-redundant-access-specifiers,
     -readability-qualified-auto,
     -readability-identifier-length,
+    -readability-identifier-naming,
     -readability-magic-numbers,
     -readability-implicit-bool-conversion,
     -readability-static-definition-in-anonymous-namespace,
