@@ -6,8 +6,8 @@
 
 #include <filesystem>
 
-#include "logging.h"
-#include "patches.h"
+#include "blmake/logging.h"
+#include "blmake/patches/patches.h"
 
 namespace fs = std::filesystem;
 
