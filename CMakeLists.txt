@@ -40,6 +40,7 @@ file(GLOB_RECURSE BLMAKE_SOURCE_LIST CONFIGURE_DEPENDS src/blmake/*.cpp src/blma
 
 add_library(blmake SHARED ${BLMAKE_SOURCE_LIST})
 target_include_directories(blmake PRIVATE src)
+target_compile_definitions(blmake PRIVATE BLMAKE_ENHANCED=$<BOOL:${BLMAKE_ENHANCED}>)
 target_link_libraries(blmake PRIVATE minhook libhat::libhat)
 
 # clean before install - only do this when installing into out/install

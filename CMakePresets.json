@@ -49,10 +49,25 @@
       }
     },
     {
+      "name": "_bl1",
+      "hidden": true,
+      "cacheVariables": {
+        "BLMAKE_ENHANCED": false
+      }
+    },
+    {
+      "name": "_bl1e",
+      "hidden": true,
+      "cacheVariables": {
+        "BLMAKE_ENHANCED": true
+      }
+    },
+    {
       "name": "msvc-x86-dbg",
       "inherits": [
         "_base",
         "_clion_msvc_x86",
+        "_bl1",
         "_debug"
       ]
     },
@@ -61,6 +76,7 @@
       "inherits": [
         "_base",
         "_clion_msvc_x86",
+        "_bl1",
         "_release"
       ]
     },
@@ -69,6 +85,7 @@
       "inherits": [
         "_base",
         "_clion_msvc_x64",
+        "_bl1e",
         "_debug"
       ]
     },
@@ -77,6 +94,7 @@
       "inherits": [
         "_base",
         "_clion_msvc_x64",
+        "_bl1e",
         "_release"
       ]
     }
