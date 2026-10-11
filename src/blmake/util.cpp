@@ -70,6 +70,16 @@ hat::scan_result find_static_find_object() {
         return cached;
     }
 
+#if BLMAKE_ENHANCED
+    constexpr auto signature = hat::compile_signature<
+        " 40 55 56 57"                 // push rbp; push rsi; push rdi
+        " 41 54 41 55 41 56 41 57"     // push r12; push r13; push r14; push r15
+        " 48 83 EC 70"                 // sub rsp, 0x70
+        " 48 C7 44 24 40 FE FF FF FF"  // mov qword [rsp + 0x40], -2
+        " 48 89 9C 24 B0 00 00 00"     // mov [rsp + 0xb0], rbx
+        " 45 8B E9"                    // mov r13d, r9d (ExactClass)
+        >();
+#else
     constexpr auto signature = hat::compile_signature<
         " 6A FF"              // push -1
         " 68 ?? ?? ?? ??"     // push handler
@@ -88,12 +98,35 @@ hat::scan_result find_static_find_object() {
         " 8B 74 24 ??"        // mov esi, [esp + 0x4c]
         " 8B 7C 24 ??"        // mov edi, [esp + 0x50]
         >();
+#endif
     cached = hat::find_pattern(signature, ".text");
     return cached;
 }
 
 hat::scan_result find_rename() {
     // UBOOL UObject::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlags Flags)
+#if BLMAKE_ENHANCED
+    constexpr auto signature = hat::compile_signature<
+        " 44 89 4C 24 20"           // mov [rsp + 0x20], r9d
+        " 55 56 57"                 // push rbp; push rsi; push rdi
+        " 41 54 41 55 41 56 41 57"  // push r12; push r13; push r14; push r15
+        " 48 8B EC"                 // mov rbp, rsp
+        " 48 81 EC 80 00 00 00"     // sub rsp, 0x80
+        " 48 C7 45 C0 FE FF FF FF"  // mov qword [rbp - 0x40], -2
+        " 48 89 9C 24 C0 00 00 00"  // mov [rsp + 0xc0], rbx
+        " 45 8B E1"                 // mov r12d, r9d
+        " 4D 8B F0"                 // mov r14, r8 (NewOuter)
+        " 4C 8B EA"                 // mov r13, rdx
+        " 48 8B F1"                 // mov rsi, rcx
+        " 33 FF"                    // xor edi, edi
+        " 89 7D 48"                 // mov [rbp + 0x48], edi
+        " 4C 8D 3D ?? ?? ?? ??"     // lea r15, [empty string]
+        " 4D 85 C0"                 // test r8, r8
+        " 0F 84 ?? ?? ?? ??"        // jz no_outer_check
+        " 48 8B 49 50"              // mov rcx, [rcx + 0x50] (Class)
+        " 48 8B 91 30 01 00 00"     // mov rdx, [rcx + 0x130] (ClassWithin)
+        >();
+#else
     constexpr auto signature = hat::compile_signature<
         " 6A FF"                    // push -1
         " 68 ?? ?? ?? ??"           // push handler
@@ -116,10 +149,24 @@ hat::scan_result find_rename() {
         " 0F 84 ?? ?? ?? ??"        // jz no_outer_check
         " 8B 4E 34"                 // mov ecx, [esi + 0x34] (Class)
         >();
+#endif
     return hat::find_pattern(signature, ".text");
 }
 
 TArray<UObject*>* find_gobjects() {
+#if BLMAKE_ENHANCED
+    constexpr auto signature = hat::compile_signature<
+        " 8B 0D ?? ?? ?? ??"     // mov ecx, [GObjObjects.ArrayNum]
+        " 48 8B 15 ?? ?? ?? ??"  // mov rdx, [GObjObjects]
+        " 48 83 3C DA 00"        // cmp qword [rdx + rbx*8], 0
+        >();
+
+    const auto result = hat::find_pattern(signature, ".text");
+    if (!result.has_result()) {
+        return nullptr;
+    }
+    return reinterpret_cast<TArray<UObject*>*>(result.rel(9));
+#else
     constexpr auto signature = hat::compile_signature<
         " 8B 0D ?? ?? ?? ??"  // mov ecx, [GObjObjects]
         " 8B 04 ??"           // mov eax, [ecx + esi*4]
@@ -135,6 +182,7 @@ TArray<UObject*>* find_gobjects() {
     TArray<UObject*>* gobjects = nullptr;
     std::memcpy(static_cast<void*>(&gobjects), result.get() + 2, sizeof(decltype(gobjects)));
     return gobjects;
+#endif
 }
 
 UObject* find_object(const wchar_t* path) {

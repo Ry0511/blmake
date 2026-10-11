@@ -85,7 +85,11 @@ int clear_value(std::byte* value, const UProperty* prop, const UObject* target) 
         const UProperty* inner = static_cast<const UArrayProperty*>(prop)->Inner;
         int cleared = cnst_zero;
         for (int32_t i = 0; i < array->count; ++i) {
-            cleared += clear_value(array->data + (i * inner->ElementSize), inner, target);
+            cleared += clear_value(
+                array->data + (static_cast<std::ptrdiff_t>(i) * inner->ElementSize),
+                inner,
+                target
+            );
         }
         return cleared;
     }
@@ -104,7 +108,11 @@ int clear_refs_into(std::byte* data, const UStruct* scope, const UObject* target
         }
 
         for (int32_t i = 0; i < prop->ArrayDim; ++i) {
-            cleared += clear_value(data + prop->Offset + (i * prop->ElementSize), prop, target);
+            cleared += clear_value(
+                data + prop->Offset + (static_cast<std::ptrdiff_t>(i) * prop->ElementSize),
+                prop,
+                target
+            );
         }
     }
     return cleared;
@@ -176,7 +184,12 @@ void purge_package(const UObject* package) {
     // null out all the references to objects we have just hidden and renamed
     int cleared = 0;
     for (UObject* obj : defaults) {
-        cleared += clear_refs_into(reinterpret_cast<std::byte*>(obj), obj->Class, obj, true);
+        cleared += clear_refs_into(
+            reinterpret_cast<std::byte*>(obj),
+            obj->Class,
+            obj,
+            true
+        );
     }
 
     BLMAKE_LOG(

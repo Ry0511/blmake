@@ -32,7 +32,7 @@ bool find_field_class() {
     }
 
     if (cls_field == nullptr) {
-        BLMAKE_LOG("find_field_class could not find Field class - the engine is probably still initialising");
+        BLMAKE_LOG("could not find Core.Field");
     }
 
     return cls_field != nullptr;
@@ -41,7 +41,9 @@ bool find_field_class() {
 // const TCHAR* UDelegateProperty::ImportText
 const wchar_t* __fastcall delegate_import_text_hook(
     UProperty* self,
+#if !BLMAKE_ENHANCED
     void* /*edx*/,
+#endif
     const wchar_t* buffer,
     void* data,
     uint32_t port_flags,
@@ -93,6 +95,29 @@ bool hook_static_find_object() {
 }
 
 bool hook_delegate_import_text() {
+#if BLMAKE_ENHANCED
+    constexpr auto signature = hat::compile_signature<
+        " 40 55 56 57"                 // push rbp; push rsi; push rdi
+        " 41 54 41 55 41 56 41 57"     // push r12; push r13; push r14; push r15
+        " 48 8D AC 24 80 F0 FF FF"     // lea rbp, [rsp - 0xf80]
+        " B8 80 10 00 00"              // mov eax, 0x1080
+        " E8 ?? ?? ?? ??"              // call _alloca_probe
+        " 48 2B E0"                    // sub rsp, rax
+        " 48 C7 44 24 68 FE FF FF FF"  // mov qword [rsp + 0x68], -2
+        " 48 89 9C 24 C8 10 00 00"     // mov [rsp + 0x10c8], rbx
+        " 48 8B 05 ?? ?? ?? ??"        // mov rax, [security_cookie]
+        " 48 33 C4"                    // xor rax, rsp
+        " 48 89 85 70 0F 00 00"        // mov [rbp + 0xf70], rax
+        " 4C 89 44 24 60"              // mov [rsp + 0x60], r8
+        " 4C 8B E2"                    // mov r12, rdx
+        " 48 8B F9"                    // mov rdi, rcx
+        " 4C 8B 85 E8 0F 00 00"        // mov r8, [rbp + 0xfe8]
+        " 41 8B D1"                    // mov edx, r9d
+        " E8 ?? ?? ?? ??"              // call UProperty::ValidateImportFlags
+        " 85 C0"                       // test eax, eax
+        " 75"                          // jnz
+        >();
+#else
     constexpr auto signature = hat::compile_signature<
         " B8 20 10 00 00"        // mov eax, 0x1020
         " E8 ?? ?? ?? ??"        // call _alloca_probe
@@ -112,6 +137,7 @@ bool hook_delegate_import_text() {
         " 85 C0"                 // test eax, eax
         " 75"                    // jnz
         >();
+#endif
 
     return install_hook(
         "UDelegateProperty::ImportText",

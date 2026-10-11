@@ -8,9 +8,15 @@
 #include "tarray.h"
 #include "tmap.h"
 
+static_assert(
+(BLMAKE_ENHANCED != 0) == (sizeof(void*) == 8),
+"BLMAKE_ENHANCED doesn't match the target architecture"
+);
+
 namespace blmake {
 
 using std::int32_t;
+using std::intptr_t;
 using std::size_t;
 using std::uint32_t;
 using std::uint64_t;
@@ -51,6 +57,113 @@ constexpr uint64_t RF_Transient            = 0x0000400000000000;
 
 constexpr uint32_t REN_ForceNoResetLoaders = 0x01;
 // clang-format on
+
+#if BLMAKE_ENHANCED
+
+////////////////////////////////////////////////////////////////////////////////
+// | BL1E |
+////////////////////////////////////////////////////////////////////////////////
+
+struct UObject {
+    BLMAKE_DISALLOW_CREATE(UObject);
+
+    uintptr_t* vftable;
+    UObject* HashNext;
+    uint64_t ObjectFlags;
+    UObject* HashOuterNext;
+    void* StateFrame;
+    void* Linker;
+    intptr_t LinkerIndex;
+    int32_t InternalIndex;
+    int32_t NetIndex;
+    UObject* Outer;
+    FName Name;
+    UClass* Class;
+    UObject* ObjectArchetype;
+};
+
+struct UPackage : UObject {
+    BLMAKE_DISALLOW_CREATE(UPackage);
+
+    uint8_t _0[0x6C];
+    uint32_t PackageFlags;
+};
+
+struct UField : UObject {
+    BLMAKE_DISALLOW_CREATE(UField);
+
+    UField* Next;
+};
+
+struct UStruct : UField {
+    BLMAKE_DISALLOW_CREATE(UStruct);
+
+    UTextBuffer* ScriptText;
+    UTextBuffer* CppText;
+    UStruct* SuperField;
+    UField* Children;
+    int32_t PropertiesSize;
+    TArray<uint8_t> Script;
+    uint8_t _0[0x14];
+    UProperty* PropertyLink;
+    uint8_t _1[0x18];
+};
+
+struct UProperty : UField {
+    BLMAKE_DISALLOW_CREATE(UProperty);
+
+    int32_t ArrayDim;
+    int32_t ElementSize;
+    uint32_t PropertyFlags;
+    uint8_t _0[0x18];
+    int32_t Offset;
+    UProperty* PropertyLinkNext;
+    uint8_t _1[0x20];
+};
+
+struct UObjectProperty : UProperty {
+    BLMAKE_DISALLOW_CREATE(UObjectProperty);
+
+    UClass* PropertyClass;
+};
+
+struct UArrayProperty : UProperty {
+    BLMAKE_DISALLOW_CREATE(UArrayProperty);
+
+    UProperty* Inner;
+};
+
+struct UStructProperty : UProperty {
+    BLMAKE_DISALLOW_CREATE(UStructProperty);
+
+    UStruct* Struct;
+};
+
+struct UFunction : UStruct {
+    BLMAKE_DISALLOW_CREATE(UFunction);
+
+    uint32_t FunctionFlags;
+    uint16_t iNative;
+};
+
+struct UClass : UStruct {
+    BLMAKE_DISALLOW_CREATE(UClass);
+
+    uint8_t _0[0x0C];
+    TMap<FName, UFunction*> FuncMap;
+    uint32_t ClassFlags;
+    uint8_t _1[0xAC];
+    UObject* ClassDefaultObject;
+    uint8_t _2[0x18];
+    TMap<FName, UObject*> ComponentNameToDefaultObjectMap;
+    TArray<FImplementedInterface> Interfaces;
+};
+
+#else
+
+////////////////////////////////////////////////////////////////////////////////
+// | BL1 |
+////////////////////////////////////////////////////////////////////////////////
 
 struct UObject {
     BLMAKE_DISALLOW_CREATE(UObject);
@@ -148,6 +261,8 @@ struct UClass : UStruct {
     TMap<FName, UObject*> ComponentNameToDefaultObjectMap;
     TArray<FImplementedInterface> Interfaces;
 };
+
+#endif
 
 #pragma pack(pop)
 
