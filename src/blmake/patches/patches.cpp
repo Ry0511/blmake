@@ -11,7 +11,9 @@
 #include "blmake/patches/delegate_import.h"
 #include "blmake/patches/make_commandlet.h"
 #include "blmake/patches/patches.h"
+#include "blmake/patches/sha_verification.h"
 #include "blmake/patches/stale_defaults.h"
+#include "blmake/util.h"
 
 namespace blmake {
 
@@ -22,23 +24,37 @@ using IsDebuggerPresentFn = BOOL(WINAPI*)();
 IsDebuggerPresentFn fn_is_debugger_present = nullptr;
 
 std::atomic patches_applied{false};
+bool make_run = false;
 bool no_compress = false;
+bool sha_bypass_patched = false;
 
 ////////////////////////////////////////////////////////////////////////////////
 // | ENTRY |
 ////////////////////////////////////////////////////////////////////////////////
 
 bool try_install() {
+    if (!find_static_find_object().has_result()) {
+        return false;
+    }
+
+    if (!install_sha_verification_bypass()) {
+        BLMAKE_LOG("couldn't find the SHA verification failure handler");
+    }
+
+    if (!make_run) {
+        return true;
+    }
+
     if (!install_make_commandlet_patches(no_compress)) {
         return false;
     }
 
     if (!install_stale_defaults_purge()) {
-        BLMAKE_LOG("couldn't find the functions needed to purge stale default subobjects");
+        BLMAKE_LOG("couldn't install stale defaults purge fix");
     }
 
     if (!install_delegate_import_fix()) {
-        BLMAKE_LOG("couldn't install the delegate import fix");
+        BLMAKE_LOG("couldn't install delegate import fix");
     }
 
     return true;
@@ -46,7 +62,7 @@ bool try_install() {
 
 BOOL WINAPI is_debugger_present_hook() {
     if (!patches_applied.load()) {
-        BLMAKE_LOG("attempting make commandlet patches...");
+        BLMAKE_LOG("attempting patches...");
         if (try_install()) {
             patches_applied.store(true);
             BLMAKE_LOG("all patches applied successfully");
@@ -83,10 +99,8 @@ bool is_make_run() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void install_patches() {
-    if (!is_make_run()) {
-        return;
-    }
-    BLMAKE_LOG("Make commandlet detected - awaiting exe decryption");
+    make_run = is_make_run();
+    BLMAKE_LOG("blmake starting...");
 
     void* target = nullptr;
 
