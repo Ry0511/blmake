@@ -31,7 +31,7 @@
       }
     },
     {
-      "name": "_clion_msvc_x86",
+      "name": "_msvc_x86",
       "hidden": true,
       "vendor": {
         "jetbrains.com/clion": {
@@ -40,7 +40,7 @@
       }
     },
     {
-      "name": "_clion_msvc_x64",
+      "name": "_msvc_x64",
       "hidden": true,
       "vendor": {
         "jetbrains.com/clion": {
@@ -49,25 +49,25 @@
       }
     },
     {
-      "name": "_bl1",
+      "name": "_willow",
       "hidden": true,
       "cacheVariables": {
-        "BLMAKE_ENHANCED": false
+        "BLCORE_FLAVOUR": "WILLOW"
       }
     },
     {
-      "name": "_bl1e",
+      "name": "_willow64",
       "hidden": true,
       "cacheVariables": {
-        "BLMAKE_ENHANCED": true
+        "BLCORE_FLAVOUR": "WILLOW64"
       }
     },
     {
       "name": "msvc-x86-dbg",
       "inherits": [
         "_base",
-        "_clion_msvc_x86",
-        "_bl1",
+        "_msvc_x86",
+        "_willow",
         "_debug"
       ]
     },
@@ -75,8 +75,8 @@
       "name": "msvc-x86-rel",
       "inherits": [
         "_base",
-        "_clion_msvc_x86",
-        "_bl1",
+        "_msvc_x86",
+        "_willow",
         "_release"
       ]
     },
@@ -84,8 +84,8 @@
       "name": "msvc-x64-dbg",
       "inherits": [
         "_base",
-        "_clion_msvc_x64",
-        "_bl1e",
+        "_msvc_x64",
+        "_willow64",
         "_debug"
       ]
     },
@@ -93,8 +93,8 @@
       "name": "msvc-x64-rel",
       "inherits": [
         "_base",
-        "_clion_msvc_x64",
-        "_bl1e",
+        "_msvc_x64",
+        "_willow64",
         "_release"
       ]
     }

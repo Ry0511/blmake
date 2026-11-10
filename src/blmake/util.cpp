@@ -70,7 +70,7 @@ hat::scan_result find_static_find_object() {
         return cached;
     }
 
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 40 55 56 57"                 // push rbp; push rsi; push rdi
         " 41 54 41 55 41 56 41 57"     // push r12; push r13; push r14; push r15
@@ -105,7 +105,7 @@ hat::scan_result find_static_find_object() {
 
 hat::scan_result find_rename() {
     // UBOOL UObject::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlags Flags)
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 44 89 4C 24 20"           // mov [rsp + 0x20], r9d
         " 55 56 57"                 // push rbp; push rsi; push rdi
@@ -154,7 +154,7 @@ hat::scan_result find_rename() {
 }
 
 TArray<UObject*>* find_gobjects() {
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 8B 0D ?? ?? ?? ??"     // mov ecx, [GObjObjects.ArrayNum]
         " 48 8B 15 ?? ?? ?? ??"  // mov rdx, [GObjObjects]

@@ -41,7 +41,7 @@ bool find_field_class() {
 // const TCHAR* UDelegateProperty::ImportText
 const wchar_t* __fastcall delegate_import_text_hook(
     UProperty* self,
-#if !BLMAKE_ENHANCED
+#ifndef WILLOW64
     void* /*edx*/,
 #endif
     const wchar_t* buffer,
@@ -95,7 +95,7 @@ bool hook_static_find_object() {
 }
 
 bool hook_delegate_import_text() {
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 40 55 56 57"                 // push rbp; push rsi; push rdi
         " 41 54 41 55 41 56 41 57"     // push r12; push r13; push r14; push r15

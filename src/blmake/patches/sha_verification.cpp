@@ -5,7 +5,7 @@
 
 namespace blmake {
 
-#if !BLMAKE_ENHANCED
+#ifndef WILLOW64
 namespace {
 
 // void appOnFailSHAVerification
@@ -48,7 +48,7 @@ bool patch_sha_verification_failure() {
 #endif
 
 bool install_sha_verification_bypass() {
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     return true;
 #else
     static bool patched = false;

@@ -48,7 +48,7 @@ bool patch_superclass_check() {
     //     }
     // }
 
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 48 83 7B 68 00"     // cmp qword [rbx + 0x68], 0
         " 0F 84 ?? ?? ?? ??"  // jz next
@@ -97,7 +97,7 @@ bool patch_parent_parsed_check() {
     //         ScriptErrorf("'%s' can't be compiled: Parent class '%s' has errors", ...); // skipped
     //     }
     // }
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 49 8B 46 20"           // mov rax, [r14 + 0x20]
         " 48 8B 58 78"           // mov rbx, [rax + 0x78]
@@ -138,7 +138,7 @@ bool patch_parse_scripts_early_out() {
     // if (Class->ScriptText == NULL) {
     //     return 1;  // skipped
     // }
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 49 8B F8"        // mov rdi, r8
         " 48 8B C2"        // mov rax, rdx
@@ -198,7 +198,7 @@ int __cdecl parse_scripts_hook(
             if ((cls->ClassFlags & CLASS_Compiled) != 0) {
                 cls->ClassFlags &= ~(CLASS_Parsed | CLASS_Compiled);
 
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
                 // BL1E: Cooked packages retain the interface list so when compiling it checks to
                 // see if its already been implemented and if so it errors with
                 // "Interface ‘X’ is already implemented by ‘Y'"
@@ -251,7 +251,7 @@ void __cdecl copy_inherited_components_hook(UClass* cls, void* instance_graph) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool hook_parse_scripts() {
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 44 89 4C 24 20"           // mov [rsp + 0x20], r9d
         " 4C 89 44 24 18"           // mov [rsp + 0x18], r8
@@ -297,7 +297,7 @@ bool hook_parse_scripts() {
 }
 
 bool hook_copy_inherited_components() {
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 40 55 56 57"              // push rbp; push rsi; push rdi
         " 41 54 41 55 41 56 41 57"  // push r12; push r13; push r14; push r15

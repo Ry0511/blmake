@@ -8,11 +8,6 @@
 #include "tarray.h"
 #include "tmap.h"
 
-static_assert(
-(BLMAKE_ENHANCED != 0) == (sizeof(void*) == 8),
-"BLMAKE_ENHANCED doesn't match the target architecture"
-);
-
 namespace blmake {
 
 using std::int32_t;
@@ -58,7 +53,7 @@ constexpr uint64_t RF_Transient            = 0x0000400000000000;
 constexpr uint32_t REN_ForceNoResetLoaders = 0x01;
 // clang-format on
 
-#if BLMAKE_ENHANCED
+#ifdef WILLOW64
 
 ////////////////////////////////////////////////////////////////////////////////
 // | BL1E |
