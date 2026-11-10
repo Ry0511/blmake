@@ -1,3 +1,6 @@
 .idea
 sample/.idea
+.temp
 out
+packaged
+__pycache__

@@ -1,0 +1,7 @@
+[sources]
+include = ["src/**/*.cpp", "src/**/*.h"]
+exclude = []
+
+[[package]]
+include = ["blmake.dll", "blmake.pdb"]
+exclude = []
