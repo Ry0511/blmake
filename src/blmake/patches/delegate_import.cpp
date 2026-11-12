@@ -1,38 +1,49 @@
+#include "blcore/engine/engine.h"
+#include "blcore/util/sigscan.h"
+
 #include <libhat.hpp>
 
-#include "blmake/logging.h"
+#include "blcore/ue3/uobject/uclass.h"
+#include "blcore/ue3/uobject/uobject.h"
+#include "blcore/ue3/uprop/uproperty.h"
+#include "blcore/util/logging.h"
 #include "blmake/patches/delegate_import.h"
-#include "blmake/structs.h"
 #include "blmake/util.h"
 
 namespace blmake {
 
+namespace engine = blcore::engine;
+namespace ue3 = blcore::ue3;
+
 namespace {
 
-using DelegateImportTextFn = const wchar_t*(__thiscall*)(UProperty * self,
+using StaticFindObjectFn = ue3::UObject*(__cdecl*)(ue3::UClass * cls,
+                                                   ue3::UObject* outer,
+                                                   const wchar_t* name,
+                                                   uint32_t exact_class);
+
+using DelegateImportTextFn = const wchar_t*(__thiscall*)(ue3::UProperty * self,
                                                          const wchar_t* buffer,
                                                          void* data,
                                                          uint32_t port_flags,
-                                                         UObject* parent,
+                                                         ue3::UObject* parent,
                                                          void* error);
 
 DelegateImportTextFn fn_delegate_import_text = nullptr;
 StaticFindObjectFn fn_static_find_object = nullptr;
 
-const auto ANY_PACKAGE = reinterpret_cast<UObject*>(-1);
-
 int importing_delegate = 0;
-UClass* cls_field = nullptr;
+ue3::UClass* cls_field = nullptr;
 
 bool find_field_class() {
     if (cls_field == nullptr) {
-        cls_field = reinterpret_cast<UClass*>(
+        cls_field = reinterpret_cast<ue3::UClass*>(
             fn_static_find_object(nullptr, nullptr, L"Core.Field", 0)
         );
     }
 
     if (cls_field == nullptr) {
-        BLMAKE_LOG("could not find Core.Field");
+        BLCORE_ERROR("could not find Core.Field");
     }
 
     return cls_field != nullptr;
@@ -40,14 +51,14 @@ bool find_field_class() {
 
 // const TCHAR* UDelegateProperty::ImportText
 const wchar_t* __fastcall delegate_import_text_hook(
-    UProperty* self,
+    ue3::UProperty* self,
 #ifndef WILLOW64
     void* /*edx*/,
 #endif
     const wchar_t* buffer,
     void* data,
     uint32_t port_flags,
-    UObject* parent,
+    ue3::UObject* parent,
     void* error
 ) {
     ++importing_delegate;
@@ -56,17 +67,17 @@ const wchar_t* __fastcall delegate_import_text_hook(
     return result;
 }
 
-UObject* __cdecl static_find_object_hook(
-    UClass* cls,
-    UObject* outer,
+ue3::UObject* __cdecl static_find_object_hook(
+    ue3::UClass* cls,
+    ue3::UObject* outer,
     const wchar_t* name,
     uint32_t exact_class
 ) {
-    UObject* found = fn_static_find_object(cls, outer, name, exact_class);
+    ue3::UObject* found = fn_static_find_object(cls, outer, name, exact_class);
 
     if (
         importing_delegate <= 0
-        || outer != ANY_PACKAGE
+        || outer != engine::ANY_PACKAGE
         || found == nullptr
         || !find_field_class()
     ) {
@@ -74,9 +85,9 @@ UObject* __cdecl static_find_object_hook(
     }
 
     // absolutely class innit
-    UClass* class_class = found->Class->Class;
-    if (is_a(found, cls_field) && !is_a(found, class_class)) {
-        UObject* as_class = fn_static_find_object(class_class, outer, name, exact_class);
+    ue3::UClass* class_class = found->Class()->Class();
+    if (engine::is_instance(found, cls_field) && !engine::is_instance(found, class_class)) {
+        ue3::UObject* as_class = fn_static_find_object(class_class, outer, name, exact_class);
         if (as_class != nullptr) {
             return as_class;
         }
@@ -85,16 +96,7 @@ UObject* __cdecl static_find_object_hook(
     return found;
 }
 
-bool hook_static_find_object() {
-    return install_hook(
-        "StaticFindObject",
-        find_static_find_object(),
-        reinterpret_cast<void*>(&static_find_object_hook),
-        reinterpret_cast<void**>(&fn_static_find_object)
-    );
-}
-
-bool hook_delegate_import_text() {
+void* find_delegate_import_text() {
 #ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 40 55 56 57"                 // push rbp; push rsi; push rdi
@@ -139,18 +141,25 @@ bool hook_delegate_import_text() {
         >();
 #endif
 
-    return install_hook(
-        "UDelegateProperty::ImportText",
-        hat::find_pattern(signature, ".text"),
-        reinterpret_cast<void*>(&delegate_import_text_hook),
-        reinterpret_cast<void**>(&fn_delegate_import_text)
-    );
+    return blcore::sigscan::find("UDelegateProperty::ImportText", signature);
 }
 
 }  // namespace
 
 bool install_delegate_import_fix() {
-    return hook_static_find_object() && hook_delegate_import_text();
+    void* static_find_object = engine::static_find_object_address();
+    void* delegate_import_text = find_delegate_import_text();
+    if (static_find_object == nullptr || delegate_import_text == nullptr) {
+        return false;
+    }
+
+    return hook("StaticFindObject", static_find_object, &static_find_object_hook, &fn_static_find_object)
+           && hook(
+               "UDelegateProperty::ImportText",
+               delegate_import_text,
+               reinterpret_cast<DelegateImportTextFn>(&delegate_import_text_hook),
+               &fn_delegate_import_text
+           );
 }
 
 }  // namespace blmake

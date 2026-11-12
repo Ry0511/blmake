@@ -1,120 +1,35 @@
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#include <shellapi.h>
+#include "blcore/engine/engine.h"
+#include "blcore/util/logging.h"
 
-#include <MinHook.h>
-
-#include <atomic>
-
-#include "blmake/logging.h"
 #include "blmake/patches/delegate_import.h"
 #include "blmake/patches/make_commandlet.h"
 #include "blmake/patches/patches.h"
-#include "blmake/patches/sha_verification.h"
 #include "blmake/patches/stale_defaults.h"
 #include "blmake/util.h"
 
 namespace blmake {
 
-namespace {
-
-using IsDebuggerPresentFn = BOOL(WINAPI*)();
-
-IsDebuggerPresentFn fn_is_debugger_present = nullptr;
-
-std::atomic patches_applied{false};
-bool make_run = false;
-bool no_compress = false;
-bool sha_bypass_patched = false;
-
-////////////////////////////////////////////////////////////////////////////////
-// | ENTRY |
-////////////////////////////////////////////////////////////////////////////////
-
-bool try_install() {
-    if (!find_static_find_object().has_result()) {
+bool install_patches(bool no_compress) {
+    if (blcore::engine::static_find_object_address() == nullptr) {
+        BLCORE_ERROR("couldn't find StaticFindObject");
         return false;
     }
 
-    if (!install_sha_verification_bypass()) {
-        BLMAKE_LOG("couldn't find the SHA verification failure handler");
-    }
-
-    if (!make_run) {
-        return true;
-    }
-
     if (!install_make_commandlet_patches(no_compress)) {
+        BLCORE_ERROR("couldn't install the make commandlet patches");
         return false;
     }
 
     if (!install_stale_defaults_purge()) {
-        BLMAKE_LOG("couldn't install stale defaults purge fix");
+        BLCORE_ERROR("couldn't install stale defaults purge fix");
     }
 
     if (!install_delegate_import_fix()) {
-        BLMAKE_LOG("couldn't install delegate import fix");
+        BLCORE_ERROR("couldn't install delegate import fix");
     }
 
+    BLCORE_INFO("all patches applied successfully");
     return true;
-}
-
-BOOL WINAPI is_debugger_present_hook() {
-    if (!patches_applied.load()) {
-        BLMAKE_LOG("attempting patches...");
-        if (try_install()) {
-            patches_applied.store(true);
-            BLMAKE_LOG("all patches applied successfully");
-        }
-    }
-    return fn_is_debugger_present();
-}
-
-bool is_make_run() {
-    int argc{0};
-    LPWSTR* args = CommandLineToArgvW(GetCommandLineW(), &argc);
-
-    const auto contains_icase = [&](const wchar_t* arg) {
-        for (int i = 2; i < argc; ++i) {
-            if (_wcsicmp(args[i], arg) == 0) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    // positional
-    const bool has_make_arg = argc > 1 && _wcsnicmp(args[1], L"make", 4) == 0;
-    no_compress = contains_icase(L"-nocompress");
-
-    LocalFree(static_cast<void*>(args));
-    return has_make_arg;
-}
-
-}  // namespace
-
-////////////////////////////////////////////////////////////////////////////////
-// | ENTRY |
-////////////////////////////////////////////////////////////////////////////////
-
-void install_patches() {
-    make_run = is_make_run();
-    BLMAKE_LOG("blmake starting...");
-
-    void* target = nullptr;
-
-    const auto ret = MH_CreateHookApiEx(
-        L"kernel32",
-        "IsDebuggerPresent",
-        reinterpret_cast<void*>(&is_debugger_present_hook),
-        reinterpret_cast<void**>(&fn_is_debugger_present),
-        &target
-    );
-
-    if (ret != MH_OK || MH_EnableHook(target) != MH_OK) {
-        BLMAKE_LOG("failed to hook IsDebuggerPresent: {}", MH_StatusToString(ret));
-    }
 }
 
 }  // namespace blmake

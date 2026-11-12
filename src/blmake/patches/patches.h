@@ -3,7 +3,7 @@
 
 namespace blmake {
 
-void install_patches();
+bool install_patches(bool no_compress);
 
 }  // namespace blmake
 

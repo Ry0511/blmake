@@ -1,13 +1,13 @@
 #ifndef BLMAKE_PATCHES_STALE_DEFAULTS_H
 #define BLMAKE_PATCHES_STALE_DEFAULTS_H
 
-namespace blmake {
+#include "blcore/ue3/mapping/fwd.h"
 
-struct UClass;
+namespace blmake {
 
 bool install_stale_defaults_purge();
 
-void purge_stale_defaults(const UClass* cls);
+void purge_stale_defaults(const blcore::ue3::UClass* cls);
 
 }  // namespace blmake
 

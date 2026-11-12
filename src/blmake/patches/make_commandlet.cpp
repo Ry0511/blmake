@@ -1,37 +1,69 @@
+#include "blcore/util/sigscan.h"
+
 #include <libhat.hpp>
 
-#include "blmake/logging.h"
+#include <span>
+#include <string_view>
+
+#include "blcore/ue3/fname.h"
+#include "blcore/ue3/tmap/tmap.h"
+#include "blcore/ue3/uobject/uclass.h"
+#include "blcore/ue3/uobject/ufunction.h"
+#include "blcore/ue3/uobject/upackage.h"
+#include "blcore/util/logging.h"
+#include "blmake/flags.h"
 #include "blmake/patches/make_commandlet.h"
 #include "blmake/patches/stale_defaults.h"
-#include "blmake/structs.h"
 #include "blmake/util.h"
 
 namespace blmake {
+
+namespace ue3 = blcore::ue3;
+
+namespace sigscan = blcore::sigscan;
 
 namespace {
 
 using ParseScriptsFn = int(__cdecl*)(
     void* tree,
     void* compiler,
-    UClass* cls,
+    ue3::UClass* cls,
     int make_all,
     int booting,
     int make_subclasses
 );
 
-using CopyInheritedComponentsFn = void(__cdecl*)(UClass* cls, void* instance_graph);
+using CopyInheritedComponentsFn = void(__cdecl*)(ue3::UClass* cls, void* instance_graph);
 
 ParseScriptsFn fn_parse_scripts = nullptr;
 CopyInheritedComponentsFn fn_copy_inherited_components = nullptr;
 
 bool no_compress = false;
 
+struct Patch {
+    sigscan::ScanResult at;
+    std::span<const uint8_t> bytes;
+};
+
+template <typename Signature>
+Patch find_patch(
+    std::string_view name,
+    const Signature& signature,
+    size_t offset,
+    std::span<const uint8_t> bytes
+) {
+    return {
+        .at = sigscan::ScanResult{sigscan::find(name, signature, offset)},
+        .bytes = bytes,
+    };
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // | PATCHES |
 ////////////////////////////////////////////////////////////////////////////////
 
 // UMakeCommandlet::Main
-bool patch_superclass_check() {
+Patch find_superclass_check() {
     // before MakeScripts runs, Main checks that every class with script text has an immediate
     // superclass with script text too. Classes from a cooked package do not have any script text
     // so that always fails.
@@ -60,7 +92,7 @@ bool patch_superclass_check() {
         >();
 
     constexpr auto offset = 29;
-    constexpr uint8_t bytes[] = {0x90, 0xE9};
+    static constexpr uint8_t bytes[] = {0x90, 0xE9};
 #else
     constexpr auto signature = hat::compile_signature<
         " 8B 04 81"     // mov eax, [ecx + eax*4]
@@ -76,18 +108,12 @@ bool patch_superclass_check() {
         >();
 
     constexpr auto offset = 22;
-    constexpr uint8_t bytes[] = {0x90, 0x90};
+    static constexpr uint8_t bytes[] = {0x90, 0x90};
 #endif
-    return apply_patch(
-        __func__,
-        hat::find_pattern(signature, ".text"),
-        offset,
-        bytes,
-        sizeof bytes
-    );
+    return find_patch("superclass check", signature, offset, bytes);
 }
 
-bool patch_parent_parsed_check() {
+Patch find_parent_parsed_check() {
     //
     // Once again cooked packages are causing issues since the CLASS_Parsed flag is not set anymore.
     // ScriptErrorf just triggers a GPF.
@@ -120,17 +146,11 @@ bool patch_parent_parsed_check() {
         >();
     constexpr auto offset = 27;
 #endif
-    constexpr uint8_t bytes[] = {0x90, 0xE9};
-    return apply_patch(
-        __func__,
-        hat::find_pattern(signature, ".text"),
-        offset,
-        bytes,
-        sizeof bytes
-    );
+    static constexpr uint8_t bytes[] = {0x90, 0xE9};
+    return find_patch("parent parsed check", signature, offset, bytes);
 }
 
-bool patch_parse_scripts_early_out() {
+Patch find_parse_scripts_early_out() {
     // This early exit causes mod packages to be skipped entirely since all classes derive Object
     // which Object.ScriptText == NULL since Core.u is cooked. We want our mod packages to be parsed
     // since the compile step depends upon it.
@@ -149,7 +169,7 @@ bool patch_parse_scripts_early_out() {
         >();
 
     constexpr auto offset = 14;
-    constexpr uint8_t bytes[] = {0xEB, 0x0A};
+    static constexpr uint8_t bytes[] = {0xEB, 0x0A};
 #else
     constexpr auto signature = hat::compile_signature<
         " 8B 6C 24 70"  // mov ebp, [esp + 0x70]
@@ -161,54 +181,48 @@ bool patch_parse_scripts_early_out() {
         >();
 
     constexpr auto offset = 9;
-    constexpr uint8_t bytes[] = {0xEB, 0x17};
+    static constexpr uint8_t bytes[] = {0xEB, 0x17};
 #endif
-    return apply_patch(
-        __func__,
-        hat::find_pattern(signature, ".text"),
-        offset,
-        bytes,
-        sizeof bytes
-    );
+    return find_patch("ParseScripts early out", signature, offset, bytes);
 }
 
 // static UBOOL ParseScripts
 int __cdecl parse_scripts_hook(
     void* tree,
     void* compiler,
-    UClass* cls,
+    ue3::UClass* cls,
     int make_all,
     int booting,
     int make_subclasses
 ) {
     if (cls != nullptr) {
         // the engine will not set these flags for cooked packages so we need to do it
-        if (cls->ScriptText == nullptr) {
-            cls->ClassFlags |= CLASS_Parsed | CLASS_Compiled;
+        if (cls->ScriptText() == nullptr) {
+            cls->ClassFlags() |= CLASS_Parsed | CLASS_Compiled;
         } else {
             purge_stale_defaults(cls);
 
             if (no_compress) {
-                reinterpret_cast<UPackage*>(cls->Outer)->PackageFlags &= ~PKG_StoreCompressed;
+                // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+                static_cast<ue3::UPackage*>(cls->Outer())->PackageFlags() &= ~PKG_StoreCompressed;
             }
 
             // when recompiling a compiled package i.e., Core.u or WillowGame.u then some of our
             // prior patches actually cause problems (ironic) so if the class is not compiled but
             // has native functions bound to it, then we need to clear them first.
-            if ((cls->ClassFlags & CLASS_Compiled) != 0) {
-                cls->ClassFlags &= ~(CLASS_Parsed | CLASS_Compiled);
+            if ((cls->ClassFlags() & CLASS_Compiled) != 0) {
+                cls->ClassFlags() &= ~(CLASS_Parsed | CLASS_Compiled);
 
 #ifdef WILLOW64
                 // BL1E: Cooked packages retain the interface list so when compiling it checks to
                 // see if its already been implemented and if so it errors with
                 // "Interface ‘X’ is already implemented by ‘Y'"
-                cls->Interfaces.count = 0;
+                cls->Interfaces().ArrayNum = 0;
 #endif
 
-                auto& funcs = cls->FuncMap.Pairs;
-                for (int32_t i = 0; i < funcs.max_index(); ++i) {
-                    if (funcs.is_allocated(i) && funcs.at(i).Value != nullptr) {
-                        funcs.at(i).Value->iNative = 0;
+                for (auto& pair : cls->FuncMap()) {
+                    if (pair.Value != nullptr) {
+                        pair.Value->iNative() = 0;
                     }
                 }
             }
@@ -217,12 +231,13 @@ int __cdecl parse_scripts_hook(
     return fn_parse_scripts(tree, compiler, cls, make_all, booting, make_subclasses);
 }
 
-int remove_null_component_templates(TMap<FName, UObject*>& map) {
+int remove_null_component_templates(ue3::TMap<ue3::FName, ue3::UObject*>& map) {
     auto& pairs = map.Pairs;
     int removed = 0;
 
     for (int32_t i = 0; i < pairs.max_index(); ++i) {
-        if (pairs.is_allocated(i) && pairs.at(i).Value == nullptr) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+        if (pairs.is_allocated(i) && pairs[i].Value == nullptr) {
             pairs.remove(i);
             ++removed;
         }
@@ -231,12 +246,12 @@ int remove_null_component_templates(TMap<FName, UObject*>& map) {
 }
 
 // ::ImportProperties helper that copies components into its defaults maps
-void __cdecl copy_inherited_components_hook(UClass* cls, void* instance_graph) {
+void __cdecl copy_inherited_components_hook(ue3::UClass* cls, void* instance_graph) {
     // null pointers do be quite dangerous
     if (cls != nullptr) {
-        const int removed = remove_null_component_templates(cls->ComponentNameToDefaultObjectMap);
+        const int removed = remove_null_component_templates(cls->ComponentNameToDefaultObjectMap());
         if (removed > 0) {
-            BLMAKE_LOG(
+            BLCORE_INFO(
                 "dropped {} null component template(s) from the class at {}",
                 removed,
                 static_cast<void*>(cls)
@@ -250,7 +265,7 @@ void __cdecl copy_inherited_components_hook(UClass* cls, void* instance_graph) {
 // | HOOKS |
 ////////////////////////////////////////////////////////////////////////////////
 
-bool hook_parse_scripts() {
+void* find_parse_scripts() {
 #ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 44 89 4C 24 20"           // mov [rsp + 0x20], r9d
@@ -288,15 +303,10 @@ bool hook_parse_scripts() {
         >();
 #endif
 
-    return install_hook(
-        "ParseScripts",
-        hat::find_pattern(signature, ".text"),
-        reinterpret_cast<void*>(&parse_scripts_hook),
-        reinterpret_cast<void**>(&fn_parse_scripts)
-    );
+    return sigscan::find("ParseScripts", signature);
 }
 
-bool hook_copy_inherited_components() {
+void* find_copy_inherited_components() {
 #ifdef WILLOW64
     constexpr auto signature = hat::compile_signature<
         " 40 55 56 57"              // push rbp; push rsi; push rdi
@@ -332,23 +342,40 @@ bool hook_copy_inherited_components() {
         >();
 #endif
 
-    return install_hook(
-        "CopyInheritedComponents",
-        hat::find_pattern(signature, ".text"),
-        reinterpret_cast<void*>(&copy_inherited_components_hook),
-        reinterpret_cast<void**>(&fn_copy_inherited_components)
-    );
+    return sigscan::find("CopyInheritedComponents", signature);
 }
 
 }  // namespace
 
 bool install_make_commandlet_patches(bool no_compress_packages) {
     no_compress = no_compress_packages;
-    return patch_superclass_check()
-           && patch_parent_parsed_check()
-           && patch_parse_scripts_early_out()
-           && hook_parse_scripts()
-           && hook_copy_inherited_components();
+
+    const Patch superclass_check = find_superclass_check();
+    const Patch parent_parsed_check = find_parent_parsed_check();
+    const Patch parse_scripts_early_out = find_parse_scripts_early_out();
+    void* parse_scripts = find_parse_scripts();
+    void* copy_inherited_components = find_copy_inherited_components();
+
+    if (
+        !superclass_check.at.has_result()
+        || !parent_parsed_check.at.has_result()
+        || !parse_scripts_early_out.at.has_result()
+        || parse_scripts == nullptr
+        || copy_inherited_components == nullptr
+    ) {
+        return false;
+    }
+
+    return superclass_check.at.write(0, superclass_check.bytes)
+           && parent_parsed_check.at.write(0, parent_parsed_check.bytes)
+           && parse_scripts_early_out.at.write(0, parse_scripts_early_out.bytes)
+           && hook("ParseScripts", parse_scripts, &parse_scripts_hook, &fn_parse_scripts)
+           && hook(
+               "CopyInheritedComponents",
+               copy_inherited_components,
+               &copy_inherited_components_hook,
+               &fn_copy_inherited_components
+           );
 }
 
 }  // namespace blmake
