@@ -5,7 +5,6 @@
 #include "blmake/patches/make_commandlet.h"
 #include "blmake/patches/patches.h"
 #include "blmake/patches/stale_defaults.h"
-#include "blmake/util.h"
 
 namespace blmake {
 

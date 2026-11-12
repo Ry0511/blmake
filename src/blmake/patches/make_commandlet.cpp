@@ -10,14 +10,15 @@
 #include "blcore/ue3/uobject/uclass.h"
 #include "blcore/ue3/uobject/ufunction.h"
 #include "blcore/ue3/uobject/upackage.h"
+#include "blcore/util/hook.h"
 #include "blcore/util/logging.h"
 #include "blmake/flags.h"
 #include "blmake/patches/make_commandlet.h"
 #include "blmake/patches/stale_defaults.h"
-#include "blmake/util.h"
 
 namespace blmake {
 
+namespace hook = blcore::hook;
 namespace ue3 = blcore::ue3;
 
 namespace sigscan = blcore::sigscan;
@@ -369,8 +370,8 @@ bool install_make_commandlet_patches(bool no_compress_packages) {
     return superclass_check.at.write(0, superclass_check.bytes)
            && parent_parsed_check.at.write(0, parent_parsed_check.bytes)
            && parse_scripts_early_out.at.write(0, parse_scripts_early_out.bytes)
-           && hook("ParseScripts", parse_scripts, &parse_scripts_hook, &fn_parse_scripts)
-           && hook(
+           && hook::install("ParseScripts", parse_scripts, &parse_scripts_hook, &fn_parse_scripts)
+           && hook::install(
                "CopyInheritedComponents",
                copy_inherited_components,
                &copy_inherited_components_hook,

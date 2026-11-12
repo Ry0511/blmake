@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
     blcore
     GIT_REPOSITORY https://github.com/Ry0511/blcore.git
-    GIT_TAG a1fe5e1d0c475ce4864ae894e37652996300fd9e
+    GIT_TAG 282a17b35cc99208f589a1c2f52bdfe0dc511f13
 )
 FetchContent_MakeAvailable(blcore)
 

@@ -6,13 +6,14 @@
 #include "blcore/ue3/uobject/uclass.h"
 #include "blcore/ue3/uobject/uobject.h"
 #include "blcore/ue3/uprop/uproperty.h"
+#include "blcore/util/hook.h"
 #include "blcore/util/logging.h"
 #include "blmake/patches/delegate_import.h"
-#include "blmake/util.h"
 
 namespace blmake {
 
 namespace engine = blcore::engine;
+namespace hook = blcore::hook;
 namespace ue3 = blcore::ue3;
 
 namespace {
@@ -153,8 +154,8 @@ bool install_delegate_import_fix() {
         return false;
     }
 
-    return hook("StaticFindObject", static_find_object, &static_find_object_hook, &fn_static_find_object)
-           && hook(
+    return hook::install("StaticFindObject", static_find_object, &static_find_object_hook, &fn_static_find_object)
+           && hook::install(
                "UDelegateProperty::ImportText",
                delegate_import_text,
                reinterpret_cast<DelegateImportTextFn>(&delegate_import_text_hook),
