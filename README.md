@@ -6,12 +6,14 @@ of effort recompile the original script packages.
 
 ## Installation
 
-1. Grab the latest version of the [plugin loader](https://github.com/bl-sdk/pluginloader/releases)
-2. Grab the latest version of [Borderlands Make](https://github.com/Ry0511/blmake/releases)
-3. Extract the contents of blmake*.zip into the plugins directory
+1. Install [blcore](https://github.com/Ry0511/blcore)
+2. Extract the latest [Borderlands Make](https://github.com/Ry0511/blmake/releases) zip into the
+   root game directory, the folder containing Binaries and WillowGame. Use the x86 zip for the
+   original game (Steam or UDK) and the x64 zip for the Enhanced version
 
-With that done, the patcher will now run whenever you execute the make commandlet. You can check the
-blmake.log file if you encounter any issues.
+With that done, the patcher will now run whenever you execute the make commandlet and stays out of
+the way the rest of the time. Its log lines go into `blcore.log` in the plugins directory, which is
+the place to look if you encounter any issues.
 
 ### Compiling Unreal Script
 

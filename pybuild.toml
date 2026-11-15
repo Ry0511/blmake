@@ -2,6 +2,29 @@
 include = ["src/**/*.cpp", "src/**/*.h"]
 exclude = []
 
+[matrix]
+arch = ["x86", "x64"]
+build = ["dbg", "rel"]
+
+[[preset]]
+name = "msvc-{arch}-{build}"
+
+[[variable]]
+when = { build = "dbg" }
+steps = ["setup", "build"]
+
+[[variable]]
+when = { build = "rel" }
+steps = ["setup", "build", "install", "check", "format"]
+
+[[variable]]
+when = { arch = "x86" }
+plugin_dir = "Binaries/Plugins/blcore"
+
+[[variable]]
+when = { arch = "x64" }
+plugin_dir = "Binaries/Win64/Plugins/blcore"
+
 [[package]]
-include = ["blmake.dll", "blmake.pdb"]
-exclude = []
+preset = "*-rel"
+files = [{ include = ["blmake.dll", "blmake.pdb"], dest = "{plugin_dir}" }]

@@ -1,0 +1,2 @@
+This project was developed with the assistance of AI tools such as Claude Code and other forms of
+Large Language Models.
